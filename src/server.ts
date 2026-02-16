@@ -1,30 +1,25 @@
-import express from 'express';
-import {userRouter} from './routes/userRoutes'
+import express from "express";
+import sequelize from "./config/database";
+import User from "./models/User"; // IMPORTANT
 
 const app = express();
-const port = 80
+app.use(express.json());
 
-app.get('/', (req, res)=>{
-    res.send("Bienvenue sur mon serveur api");
-})
+async function startServer() {
+  try {
+    await sequelize.authenticate();
+    console.log("✅ Connexion DB OK");
 
-app.get("/api/hello/:name", (req,res)=>{
-    const name = req.params.name;
-    const response = {
-        message: `Bonjour ${name}`,
-        timestamp: new Date()
-    }
-    res.json(response)
-})
+    await sequelize.sync({ force: true }); // temporaire pour recréer proprement
+    console.log("✅ Tables synchronisées");
 
-app.use(userRouter)
+    app.listen(3000, () => {
+      console.log("🚀 Serveur lancé sur http://localhost:3000");
+    });
 
+  } catch (error) {
+    console.error("❌ Erreur :", error);
+  }
+}
 
-
-app.listen(port,() =>{
-    console.log(`Serveur lancé sur http://localhost:${port}`)
-})
-
-
-
-
+startServer();

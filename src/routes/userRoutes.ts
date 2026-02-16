@@ -1,5 +1,5 @@
 import  {Router } from 'express'
-
+import User from "../models/User"
 export const userRouter = Router()
 
 const users = [
@@ -8,6 +8,6 @@ const users = [
     ]
 
 userRouter.get("/api/users",(req,res)=>{
-    res.json(users)
+    res.json(User)
 })
 
