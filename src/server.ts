@@ -1,25 +1,31 @@
 import express from "express";
 import sequelize from "./config/database";
-import User from "./models/User"; // IMPORTANT
+import userRoutes from "./routes/userRoutes";
+import "./models/User"; // IMPORTANT: charge le modèle
+import path from 'path'
 
 const app = express();
 app.use(express.json());
 
-async function startServer() {
+app.use(express.static(path.join(__dirname,"../public")));
+
+// routes
+app.use("/api/users", userRoutes);
+
+
+
+async function start() {
   try {
     await sequelize.authenticate();
-    console.log("✅ Connexion DB OK");
+    console.log("✅ DB connectée");
 
-    await sequelize.sync({ force: true }); // temporaire pour recréer proprement
-    console.log("✅ Tables synchronisées");
+    await sequelize.sync();
+    console.log("✅ DB synchronisée");
 
-    app.listen(3000, () => {
-      console.log("🚀 Serveur lancé sur http://localhost:3000");
-    });
-
-  } catch (error) {
-    console.error("❌ Erreur :", error);
+    app.listen(3000, () => console.log("🚀 http://localhost:3000"));
+  } catch (err) {
+    console.error("❌ Erreur démarrage :", err);
   }
 }
 
-startServer();
+start();
