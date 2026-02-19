@@ -4,14 +4,22 @@ import userRoutes from "./routes/userRoutes";
 import "./models/User"; // IMPORTANT: charge le modèle
 import path from 'path'
 import { requestLogger } from "./middlewares/logger";
+import { errorHandler } from "./middlewares/errorHandler";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./config/swagger";
+
 
 const app = express();
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 app.use(express.json());
 
 app.use(express.static(path.join(__dirname,"../public")));
 app.use(requestLogger)
-// routes
+
 app.use("/api/users", userRoutes);  
+
+app.use(errorHandler)
 
 async function start() {
   try {

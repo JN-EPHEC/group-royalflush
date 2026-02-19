@@ -4,11 +4,30 @@ import * as userController from "../controllers/userControllers"
 
 const router = Router();
 
+
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Récupère la liste des utilisateurs
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: Succès
+ */
 router.get("/", userController.getAllUsers)
-// GET /api/users
 
 
-// POST /api/users
+/**
+ * @swagger
+ * /api/users:
+ *   post:
+ *     summary: créer un utilisateur
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: Succès
+ */
 router.post("/", async (req, res) => {
   try {
     const { nom, prenom } = req.body;
@@ -25,7 +44,16 @@ router.post("/", async (req, res) => {
   }
 });
 
-// DELETE /api/users/:id
+/**
+ * @swagger
+ * /api/users:
+ *   delete:
+ *     summary: supprimer un utilisateur
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: Succès
+ */
 router.delete("/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
