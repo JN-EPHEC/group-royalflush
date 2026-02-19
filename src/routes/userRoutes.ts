@@ -1,18 +1,12 @@
 import { Router } from "express";
 import User from "../models/User";
+import * as userController from "../controllers/userControllers"
 
 const router = Router();
 
+router.get("/", userController.getAllUsers)
 // GET /api/users
-router.get("/", async (req, res) => {
-  try {
-    const users = await User.findAll();
-    res.status(200).json(users);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Erreur serveur" });
-  }
-});
+
 
 // POST /api/users
 router.post("/", async (req, res) => {
