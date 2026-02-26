@@ -1,6 +1,7 @@
 import { Router } from "express";
 import User from "../models/User";
 import * as userController from "../controllers/userControllers"
+import { checkIdParams } from "../middlewares/checkIdParams";
 
 const router = Router();
 
@@ -15,8 +16,8 @@ const router = Router();
  *       200:
  *         description: Succès
  */
+router.get("/:id",checkIdParams, userController.getUserById)
 router.get("/", userController.getAllUsers)
-
 
 /**
  * @swagger
@@ -47,6 +48,40 @@ router.post("/", async (req, res) => {
 /**
  * @swagger
  * /api/users:
+ *   put:
+ *     summary: modifier un user
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: succès
+ * 
+ */
+
+router.put("/:id", checkIdParams, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { nom, prenom } = req.body;
+
+    if (!nom || !prenom) {
+      return res.status(400).json({ message: "nom et prenom obligatoires" });
+    }
+
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ message: "Utilisateur introuvable" });
+
+    user.nom = nom;
+    user.prenom = prenom;
+    await user.save();
+
+    res.status(200).json(user);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+/**
+ * @swagger
+ * /api/users:
  *   delete:
  *     summary: supprimer un utilisateur
  *     tags: [Users]
@@ -54,7 +89,7 @@ router.post("/", async (req, res) => {
  *       200:
  *         description: Succès
  */
-router.delete("/:id", async (req, res) => {
+router.delete("/:id",checkIdParams, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (Number.isNaN(id)) {

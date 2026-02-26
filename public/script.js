@@ -1,30 +1,66 @@
-async function loadUsers(){
-    const reponse = await fetch("api/users")
-    const users = await reponse.json()
+async function loadUsers() {
+  const reponse = await fetch("api/users");
+  const users = await reponse.json();
 
-    const liste = document.getElementById('userList')
-    liste.innerHTML = ""
-    users.forEach(user => {
+  const liste = document.getElementById('userList');
+  liste.innerHTML = "";
 
-        const btn = document.createElement("button")
-        const li = document.createElement("li")
-        li.textContent = user.nom + " | " + user.prenom + " | "
-        btn.textContent = "X" 
+  users.forEach(user => {
 
-        btn.addEventListener("click", async()=>{
-            await fetch(`/api/users/${user.id}`,{
-                method: "DELETE"
-            })
-            loadUsers()
-        })
-        
-        li.appendChild(btn)
-        liste.appendChild(li)
+    const li = document.createElement("li");
+    li.textContent = user.nom + " | " + user.prenom + " | ";
 
+    // 🔴 BOUTON DELETE
+    const btnDelete = document.createElement("button");
+    btnDelete.textContent = "X";
 
-    })
+    btnDelete.addEventListener("click", async () => {
+      await fetch(`/api/users/${user.id}`, {
+        method: "DELETE"
+      });
+      loadUsers();
+    });
+
+    // 🟡 BOUTON UPDATE
+    const btnUpdate = document.createElement("button");
+    btnUpdate.textContent = "Modifier";
+
+    btnUpdate.addEventListener("click", async () => {
+      const newNom = prompt("Nouveau nom :", user.nom);
+      const newPrenom = prompt("Nouveau prénom :", user.prenom);
+
+      if (!newNom || !newPrenom) return;
+
+      await fetch(`/api/users/${user.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ nom: newNom, prenom: newPrenom })
+      });
+
+      loadUsers();
+    });
+
+    li.appendChild(btnUpdate);
+    li.appendChild(btnDelete);
+    liste.appendChild(li);
+  });
 }
-loadUsers()
+
+loadUsers();
+
+async function updateUser(id, nom, prenom) {
+  await fetch(`/api/users/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ nom, prenom })
+  });
+
+  loadUsers(); // recharge la liste
+}
 
 const form = document.getElementById("userForm")
 
