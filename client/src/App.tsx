@@ -1,35 +1,99 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+interface User {
+  id: number;
+  nom: string;
+  prenom: string;
 }
 
-export default App
+function App() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [nom, setNom] = useState("");
+  const [prenom, setPrenom] = useState("");
+
+  // 🔄 Charger les users
+  const loadUsers = async () => {
+    const res = await fetch("/api/users");
+    const data = await res.json();
+    setUsers(data);
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  // ➕ Ajouter user
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nom, prenom }),
+    });
+
+    setNom("");
+    setPrenom("");
+    loadUsers();
+  };
+
+  // ❌ Supprimer user
+  const handleDelete = async (id: number) => {
+    await fetch(`/api/users/${id}`, {
+      method: "DELETE",
+    });
+
+    loadUsers();
+  };
+
+  // ✏️ Modifier user (simple prompt)
+  const handleUpdate = async (user: User) => {
+    const newNom = prompt("Nouveau nom :", user.nom);
+    const newPrenom = prompt("Nouveau prénom :", user.prenom);
+
+    if (!newNom || !newPrenom) return;
+
+    await fetch(`/api/users/${user.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nom: newNom, prenom: newPrenom }),
+    });
+
+    loadUsers();
+  };
+
+  return (
+    <div>
+      <h1>Users</h1>
+
+      {/* FORMULAIRE AJOUT */}
+      <form onSubmit={handleAdd}>
+        <input
+          placeholder="Nom"
+          value={nom}
+          onChange={(e) => setNom(e.target.value)}
+        />
+        <input
+          placeholder="Prénom"
+          value={prenom}
+          onChange={(e) => setPrenom(e.target.value)}
+        />
+        <button type="submit">Ajouter</button>
+      </form>
+
+      <ul>
+        {users.map((u) => (
+          <li key={u.id}>
+            {u.prenom} {u.nom}
+            {" "}
+            <button onClick={() => handleUpdate(u)}>Modifier</button>
+            <button onClick={() => handleDelete(u.id)}>Supprimer</button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default App;
