@@ -28,7 +28,6 @@ async function start() {
   try {
     await sequelize.authenticate();
     console.log("DB connectée");
-
     await sequelize.sync();
     console.log("DB synchronisée");
 

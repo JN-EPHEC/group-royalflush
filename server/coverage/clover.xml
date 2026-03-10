@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1773160439711" clover="3.2.0">
+  <project timestamp="1773160439711" name="All files">
+    <metrics statements="32" coveredstatements="32" conditionals="39" coveredconditionals="39" methods="2" coveredmethods="2" elements="73" coveredelements="73" complexity="0" loc="32" ncloc="32" packages="1" files="2" classes="2"/>
+    <file name="password.ts" path="C:\Users\Dani\Documents\tp1 dev3\individual-danigmrs\server\src\utils\password.ts">
+      <metrics statements="16" coveredstatements="16" conditionals="25" coveredconditionals="25" methods="1" coveredmethods="1"/>
+      <line num="1" count="1" type="stmt"/>
+      <line num="2" count="14" type="cond" truecount="2" falsecount="0"/>
+      <line num="3" count="13" type="cond" truecount="2" falsecount="0"/>
+      <line num="4" count="12" type="cond" truecount="2" falsecount="0"/>
+      <line num="6" count="11" type="stmt"/>
+      <line num="7" count="11" type="stmt"/>
+      <line num="8" count="11" type="stmt"/>
+      <line num="9" count="11" type="stmt"/>
+      <line num="11" count="11" type="cond" truecount="2" falsecount="0"/>
+      <line num="13" count="2" type="cond" truecount="2" falsecount="0"/>
+      <line num="14" count="1" type="stmt"/>
+      <line num="15" count="9" type="cond" truecount="4" falsecount="0"/>
+      <line num="17" count="6" type="cond" truecount="5" falsecount="0"/>
+      <line num="18" count="3" type="cond" truecount="2" falsecount="0"/>
+      <line num="21" count="3" type="cond" truecount="4" falsecount="0"/>
+      <line num="24" count="4" type="stmt"/>
+    </file>
+    <file name="shipping.ts" path="C:\Users\Dani\Documents\tp1 dev3\individual-danigmrs\server\src\utils\shipping.ts">
+      <metrics statements="16" coveredstatements="16" conditionals="14" coveredconditionals="14" methods="1" coveredmethods="1"/>
+      <line num="44" count="2" type="stmt"/>
+      <line num="50" count="19" type="cond" truecount="2" falsecount="0"/>
+      <line num="51" count="1" type="stmt"/>
+      <line num="54" count="18" type="cond" truecount="4" falsecount="0"/>
+      <line num="55" count="3" type="stmt"/>
+      <line num="59" count="15" type="stmt"/>
+      <line num="61" count="15" type="cond" truecount="2" falsecount="0"/>
+      <line num="62" count="6" type="stmt"/>
+      <line num="63" count="9" type="cond" truecount="2" falsecount="0"/>
+      <line num="64" count="6" type="stmt"/>
+      <line num="66" count="3" type="stmt"/>
+      <line num="70" count="15" type="cond" truecount="2" falsecount="0"/>
+      <line num="71" count="6" type="stmt"/>
+      <line num="75" count="15" type="cond" truecount="2" falsecount="0"/>
+      <line num="76" count="5" type="stmt"/>
+      <line num="79" count="15" type="stmt"/>
+    </file>
+  </project>
+</coverage>
