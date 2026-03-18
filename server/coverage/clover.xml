@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1773178423865" clover="3.2.0">
-  <project timestamp="1773178423865" name="All files">
+<coverage generated="1773833011320" clover="3.2.0">
+  <project timestamp="1773833011320" name="All files">
     <metrics statements="45" coveredstatements="45" conditionals="51" coveredconditionals="51" methods="3" coveredmethods="3" elements="99" coveredelements="99" complexity="0" loc="45" ncloc="45" packages="1" files="3" classes="3"/>
     <file name="password.ts" path="C:\Users\Dani\Documents\tp1 dev3\individual-danigmrs\server\src\utils\password.ts">
       <metrics statements="16" coveredstatements="16" conditionals="25" coveredconditionals="25" methods="1" coveredmethods="1"/>
@@ -53,8 +53,8 @@
       <line num="23" count="4" type="cond" truecount="2" falsecount="0"/>
       <line num="24" count="2" type="cond" truecount="2" falsecount="0"/>
       <line num="25" count="1" type="stmt"/>
-      <line num="28" count="2" type="stmt"/>
-      <line num="30" count="1" type="stmt"/>
+      <line num="27" count="1" type="stmt"/>
+      <line num="30" count="2" type="stmt"/>
     </file>
   </project>
 </coverage>

@@ -7,12 +7,14 @@ describe("User Registration Validator", ()=>{
     test("admin valide", ()=>{
         expect(validateUserRegistration(25,"admin","jreiozar@gmail.com")).toBe(true)
     })
-    test("âge invalide", ()=>{
-        expect(validateUserRegistration(130,"user","jreiozar@gmail.com")).toThrow("Âge invalide")
-    })
-    test("role invalide", ()=>{
-        expect(validateUserRegistration(25,"prof","jreiozar@gmail.com")).toThrow("Rôle invalide")
-    })
+    test("âge invalide", () => {
+        expect(() => validateUserRegistration(130, "user", "jreiozar@gmail.com"))
+        .toThrow("Âge invalide");
+    });
+    test("rôle invalide", () => {
+        expect(() => validateUserRegistration(25, "prof" as any, "jreiozar@gmail.com"))
+        .toThrow("Rôle invalide");
+    });
     test("rejette si pas '@' et pas de '.' ", ()=>{
         expect(validateUserRegistration(25,"user","jreiozargmail.com")).toBe(false)
     })

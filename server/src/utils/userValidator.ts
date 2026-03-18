@@ -16,16 +16,16 @@ export function validateUserRegistration(
     }
 
     //Email invalide
-    if(!email.includes("@") || !email.includes(".")){
+    if (!email.includes("@") || !email.includes(".")){
         return false
     }
     // âge inférieur à 18
     if (age < 18){
-        if(role === "stagiaire"){
+        if (role === "stagiaire"){
             return true
-        }
-    }else {
+        } else {
         return false
+        }
     }
     return true
 }
