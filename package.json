@@ -4,15 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "//": "Installe les dépendances des deux projets",
+    "//": "Lance les deux en parallèle",
     "setup": "npm install --prefix server && npm install --prefix client",
-    "//": "Raccourcis vers les commandes des sous-dossiers",
     "start:server": "npm run start --prefix server",
     "start:client": "npm run dev --prefix client",
-    "//": "Lance les deux en parallèle",
-    "dev": "concurrently \"npm run start:server\" \"npm run start:client\""
+    "dev": "concurrently \"npm run start:server\" \"npm run start:client\"",
+    "build": "npm run build --prefix client"
   },
-
   "repository": {
     "type": "git",
     "url": "git+https://github.com/JN-EPHEC/individual-danigmrs.git"
@@ -27,5 +25,9 @@
   "homepage": "https://github.com/JN-EPHEC/individual-danigmrs#readme",
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "axios": "^1.15.0",
+    "react-router-dom": "^7.14.0"
   }
 }
