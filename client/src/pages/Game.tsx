@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../styles/auth.css";
 import "../styles/game.css";
@@ -76,6 +76,9 @@ export default function Game() {
           Zone de jeu — le pseudo <strong>{user.username}</strong> s’affichera ici dans tes écrans de
           jeu (blackjack, roulette, etc.).
         </p>
+        <Link to="/blackjack" className="game-blackjack-link">
+          Jouer au Blackjack
+        </Link>
       </main>
     </div>
   );
