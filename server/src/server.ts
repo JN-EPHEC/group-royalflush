@@ -1,6 +1,5 @@
 import express from "express";
 import sequelize from "./config/database";
-import userRoutes from "./routes/userRoutes";
 import "./models/User"; // IMPORTANT: charge le modèle
 import path from 'path'
 import { requestLogger } from "./middlewares/logger";

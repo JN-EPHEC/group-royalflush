@@ -9,6 +9,8 @@ datasource db {
 model User {
   id             Int             @id @default(autoincrement())
   email          String          @unique
+  /// Pseudo affiché en jeu (obligatoire à l’inscription ; nullable pour anciennes lignes)
+  username       String?         @unique
   password       String
   balance        Float           @default(1000)
   createdAt      DateTime        @default(now())
