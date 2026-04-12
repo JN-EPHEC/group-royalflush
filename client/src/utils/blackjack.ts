@@ -83,6 +83,16 @@ export function isBlackjack(hand: Card[]): boolean {
   return hand.length === 2 && calculateScore(hand) === 21;
 }
 
+/** Valeur de split : même rang, ou toutes les « 10 » (10, J, Q, K) ensemble. */
+export function getSplitValue(rank: Rank): string {
+  if (rank === "10" || rank === "J" || rank === "Q" || rank === "K") return "10";
+  return rank;
+}
+
+export function canSplitPair(a: Card, b: Card): boolean {
+  return getSplitValue(a.rank) === getSplitValue(b.rank);
+}
+
 export function getDealerVisibleScore(hand: Card[]): number {
   if (hand.length === 0) return 0;
   return calculateScore([hand[0]]);

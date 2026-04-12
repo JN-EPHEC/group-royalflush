@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PlayingCard from "../components/PlayingCard";
 import "../styles/blackjack.css";
@@ -6,6 +6,7 @@ import { updateStoredUserBalance } from "../lib/authStorage";
 import {
   type Card,
   calculateScore,
+  canSplitPair,
   createDeck,
   drawCard,
   getDealerVisibleScore,
@@ -23,39 +24,80 @@ type GameStatus =
   | "dealer-wins"
   | "push";
 
+type PendingHandSettlement = {
+  cards: Card[];
+  wager: number;
+  busted: boolean;
+};
+
 const API = "http://localhost:3000";
+/** Nombre max de mains (re-splits inclus), règle type casino. */
+const MAX_PLAYER_HANDS = 4;
 
 export default function Blackjack() {
   const navigate = useNavigate();
   const [deck, setDeck] = useState<Card[]>([]);
-  const [playerHand, setPlayerHand] = useState<Card[]>([]);
   const [dealerHand, setDealerHand] = useState<Card[]>([]);
+  const [playerHands, setPlayerHands] = useState<Card[][]>([]);
+  const [handBets, setHandBets] = useState<number[]>([]);
+  const [handDoubled, setHandDoubled] = useState<boolean[]>([]);
+  const [handDone, setHandDone] = useState<boolean[]>([]);
+  const [activeHandIndex, setActiveHandIndex] = useState(0);
   const [gameStatus, setGameStatus] = useState<GameStatus>("idle");
   const [gameOver, setGameOver] = useState(true);
+  const [endSummary, setEndSummary] = useState<string | null>(null);
 
   const [chips, setChips] = useState(0);
-  const [bet, setBet] = useState(50);
-  /** Mise engagée pour la main en cours (évite les valeurs périmées si `bet` change). */
-  const [handWager, setHandWager] = useState(0);
+  const [bet, setBet] = useState(10);
   const [staking, setStaking] = useState(false);
+
+  const deckRef = useRef(deck);
+
+  useEffect(() => {
+    deckRef.current = deck;
+  }, [deck]);
 
   const applyServerBalance = (balance: number) => {
     setChips(balance);
     updateStoredUserBalance(balance);
   };
 
+  const stakeAmount = async (amount: number): Promise<number | null> => {
+    const token = localStorage.getItem("token");
+    if (!token) return null;
+    const res = await fetch(`${API}/api/blackjack/stake`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ amount }),
+    });
+    const json = (await res.json().catch(() => ({}))) as { balance?: number; error?: string };
+    if (!res.ok) {
+      alert(json.error ?? "Impossible de miser.");
+      return null;
+    }
+    if (typeof json.balance !== "number") return null;
+    return json.balance;
+  };
+
   const getMessage = () => {
+    if (endSummary) return endSummary;
     switch (gameStatus) {
       case "idle":
-        return "Règle ta mise, puis clique sur « Miser et jouer » : les jetons sont prélevés tout de suite.";
+        return `Le blackjack est un jeu de cartes où le but est d’obtenir un total de points le plus proche possible de 21 sans le dépasser, en battant le croupier.`;
       case "playing":
-        return "Partie en cours...";
+        if (playerHands.length > 1) {
+          return `Main ${activeHandIndex + 1} / ${playerHands.length}`;
+        }
+        return "Partie en cours…";
       case "player-blackjack":
-        return "Blackjack ! Tu gagnes.";
+        return "Blackjack naturel ! Tu gagnes (3:2).";
       case "player-bust":
-        return "Tu dépasses 21. Tu perds.";
+        return "Tu dépasses 21.";
       case "dealer-bust":
-        return "Le croupier dépasse 21. Tu gagnes.";
+        return "Le croupier dépasse 21.";
       case "player-wins":
         return "Tu gagnes.";
       case "dealer-wins":
@@ -106,26 +148,19 @@ export default function Blackjack() {
     }
   };
 
-  const finishGame = async (
+  const finishNaturalRound = async (
     result: GameStatus,
-    finalPlayerHand: Card[],
-    finalDealerHand: Card[],
+    pHand: Card[],
+    dHand: Card[],
     wager: number
   ) => {
-    const finalPlayerScore = calculateScore(finalPlayerHand);
-    const finalDealerScore = calculateScore(finalDealerHand);
-
+    const pScore = calculateScore(pHand);
+    const dScore = calculateScore(dHand);
     setGameStatus(result);
     setGameOver(true);
+    setEndSummary(null);
 
-    const newBalance = await saveGameToDatabase(
-      result,
-      finalPlayerHand,
-      finalDealerHand,
-      finalPlayerScore,
-      finalDealerScore,
-      wager
-    );
+    const newBalance = await saveGameToDatabase(result, pHand, dHand, pScore, dScore, wager);
     if (newBalance !== null) {
       applyServerBalance(newBalance);
     } else {
@@ -135,7 +170,117 @@ export default function Blackjack() {
     }
   };
 
-  /** Mise débitée sur le compte (API), puis distribution. */
+  const describeOutcome = (result: GameStatus, handIdx: number): string => {
+    const label = `M${handIdx + 1}`;
+    switch (result) {
+      case "player-bust":
+        return `${label} : bust`;
+      case "dealer-bust":
+        return `${label} : gagné (croupier bust)`;
+      case "player-wins":
+        return `${label} : gagné`;
+      case "dealer-wins":
+        return `${label} : perdu`;
+      case "push":
+        return `${label} : égalité`;
+      default:
+        return `${label} : fin`;
+    }
+  };
+
+  const finalizeMultiHandRound = async (
+    pending: PendingHandSettlement[],
+    dHand: Card[],
+    dk: Card[]
+  ) => {
+    let d = [...dHand];
+    let deckLocal = [...dk];
+    while (calculateScore(d) < 17) {
+      const draw = drawCard(deckLocal);
+      d.push(draw.card);
+      deckLocal = draw.newDeck;
+    }
+
+    const dScore = calculateScore(d);
+    const dealerBust = dScore > 21;
+
+    setDeck(deckLocal);
+    setDealerHand(d);
+    setGameOver(true);
+
+    const parts: string[] = [];
+    let lastBalance: number | null = null;
+
+    for (let i = 0; i < pending.length; i++) {
+      const p = pending[i];
+      let result: GameStatus;
+      if (p.busted) {
+        result = "player-bust";
+      } else if (dealerBust) {
+        result = "dealer-bust";
+      } else {
+        const pScore = calculateScore(p.cards);
+        if (pScore > dScore) result = "player-wins";
+        else if (pScore < dScore) result = "dealer-wins";
+        else result = "push";
+      }
+      parts.push(describeOutcome(result, i));
+      const bal = await saveGameToDatabase(
+        result,
+        p.cards,
+        d,
+        calculateScore(p.cards),
+        dScore,
+        p.wager
+      );
+      if (bal !== null) lastBalance = bal;
+    }
+
+    setEndSummary(parts.join(" · "));
+    setGameStatus("playing");
+    if (lastBalance !== null) applyServerBalance(lastBalance);
+    else if (pending.length > 0) {
+      alert(
+        "Une ou plusieurs mains n’ont pas pu être enregistrées. Rafraîchis la page pour ton solde."
+      );
+    }
+  };
+
+  const findNextActive = (done: boolean[], from: number): number => {
+    for (let i = from + 1; i < done.length; i++) {
+      if (!done[i]) return i;
+    }
+    return -1;
+  };
+
+  const findFirstIncompleteHand = (done: boolean[]): number => done.findIndex((d) => !d);
+
+  /** Quand toutes les mains sont terminées, file de règlement dans l’ordre des mains (M1, M2…). */
+  const completeCurrentHand = (
+    nextDone: boolean[],
+    currentActive: number,
+    nextDeck: Card[],
+    handsAfter: Card[][],
+    betsAfter: number[]
+  ) => {
+    setPlayerHands(handsAfter);
+    setHandBets(betsAfter);
+    setHandDone(nextDone);
+    setDeck(nextDeck);
+
+    const nextIdx = findNextActive(nextDone, currentActive);
+    if (nextIdx >= 0) {
+      setActiveHandIndex(nextIdx);
+    } else {
+      const queue: PendingHandSettlement[] = handsAfter.map((cards, idx) => ({
+        cards,
+        wager: betsAfter[idx],
+        busted: calculateScore(cards) > 21,
+      }));
+      void finalizeMultiHandRound(queue, dealerHand, nextDeck);
+    }
+  };
+
   const placeBetAndDeal = async () => {
     if (!gameOver || staking) return;
 
@@ -158,28 +303,14 @@ export default function Blackjack() {
     const wager = bet;
     setStaking(true);
     try {
-      const res = await fetch(`${API}/api/blackjack/stake`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ amount: wager }),
-      });
-      const json = (await res.json().catch(() => ({}))) as { error?: string; balance?: number };
-      if (!res.ok) {
-        alert(json.error ?? "Impossible de miser.");
-        return;
-      }
-      if (typeof json.balance !== "number") {
-        alert("Réponse serveur invalide.");
-        return;
-      }
-      applyServerBalance(json.balance);
-      setHandWager(wager);
+      const balance = await stakeAmount(wager);
+      if (balance === null) return;
+      applyServerBalance(balance);
     } finally {
       setStaking(false);
     }
+
+    setEndSummary(null);
 
     let newDeck = shuffleDeck(createDeck());
 
@@ -195,23 +326,27 @@ export default function Blackjack() {
     const d2 = drawCard(newDeck);
     newDeck = d2.newDeck;
 
-    const newPlayerHand = [p1.card, p2.card];
+    const firstHand = [p1.card, p2.card];
     const newDealerHand = [d1.card, d2.card];
 
     setDeck(newDeck);
-    setPlayerHand(newPlayerHand);
     setDealerHand(newDealerHand);
+    setPlayerHands([firstHand]);
+    setHandBets([wager]);
+    setHandDoubled([false]);
+    setHandDone([false]);
+    setActiveHandIndex(0);
     setGameOver(false);
 
-    const playerBJ = isBlackjack(newPlayerHand);
+    const playerBJ = isBlackjack(firstHand);
     const dealerBJ = isBlackjack(newDealerHand);
 
     if (playerBJ && dealerBJ) {
-      finishGame("push", newPlayerHand, newDealerHand, wager);
+      await finishNaturalRound("push", firstHand, newDealerHand, wager);
     } else if (playerBJ) {
-      finishGame("player-blackjack", newPlayerHand, newDealerHand, wager);
+      await finishNaturalRound("player-blackjack", firstHand, newDealerHand, wager);
     } else if (dealerBJ) {
-      finishGame("dealer-wins", newPlayerHand, newDealerHand, wager);
+      await finishNaturalRound("dealer-wins", firstHand, newDealerHand, wager);
     } else {
       setGameStatus("playing");
     }
@@ -219,46 +354,143 @@ export default function Blackjack() {
 
   const handleHit = () => {
     if (gameOver) return;
+    const i = activeHandIndex;
+    if (!playerHands[i] || handDone[i]) return;
 
     const draw = drawCard(deck);
-    const newPlayerHand = [...playerHand, draw.card];
-    const score = calculateScore(newPlayerHand);
-
-    setDeck(draw.newDeck);
-    setPlayerHand(newPlayerHand);
+    const newHand = [...playerHands[i], draw.card];
+    const score = calculateScore(newHand);
+    const nextHands = playerHands.map((h, idx) => (idx === i ? newHand : h));
 
     if (score > 21) {
-      finishGame("player-bust", newPlayerHand, dealerHand, handWager);
+      const nextDone = handDone.map((d, idx) => (idx === i ? true : d));
+      completeCurrentHand(nextDone, i, draw.newDeck, nextHands, handBets);
+    } else {
+      setDeck(draw.newDeck);
+      setPlayerHands(nextHands);
     }
   };
 
   const handleStand = () => {
     if (gameOver) return;
+    const i = activeHandIndex;
+    if (!playerHands[i] || handDone[i]) return;
 
-    let currentDeck = [...deck];
-    let currentDealerHand = [...dealerHand];
+    const nextDone = handDone.map((d, idx) => (idx === i ? true : d));
+    const handsAfter = playerHands.map((h, idx) => (idx === i ? [...h] : h));
+    completeCurrentHand(nextDone, i, deck, handsAfter, handBets);
+  };
 
-    while (calculateScore(currentDealerHand) < 17) {
-      const draw = drawCard(currentDeck);
-      currentDealerHand = [...currentDealerHand, draw.card];
-      currentDeck = draw.newDeck;
+  const handleDouble = async () => {
+    if (gameOver) return;
+    const i = activeHandIndex;
+    const h = playerHands[i];
+    if (!h || handDone[i] || h.length !== 2 || handDoubled[i]) return;
+
+    const extra = handBets[i];
+    if (extra > chips) {
+      alert("Solde insuffisant pour doubler.");
+      return;
     }
 
-    const playerScore = calculateScore(playerHand);
-    const dealerScore = calculateScore(currentDealerHand);
+    setStaking(true);
+    const bal = await stakeAmount(extra);
+    setStaking(false);
+    if (bal === null) return;
+    applyServerBalance(bal);
 
-    setDeck(currentDeck);
-    setDealerHand(currentDealerHand);
+    const newBetRow = handBets.map((b, idx) => (idx === i ? b + extra : b));
+    const newDoubled = handDoubled.map((d, idx) => (idx === i ? true : d));
+    setHandBets(newBetRow);
+    setHandDoubled(newDoubled);
 
-    if (dealerScore > 21) {
-      finishGame("dealer-bust", playerHand, currentDealerHand, handWager);
-    } else if (dealerScore > playerScore) {
-      finishGame("dealer-wins", playerHand, currentDealerHand, handWager);
-    } else if (dealerScore < playerScore) {
-      finishGame("player-wins", playerHand, currentDealerHand, handWager);
-    } else {
-      finishGame("push", playerHand, currentDealerHand, handWager);
+    const draw = drawCard(deckRef.current);
+    const newHand = [...h, draw.card];
+    const score = calculateScore(newHand);
+    const nextHands = playerHands.map((row, idx) => (idx === i ? newHand : row));
+    setDeck(draw.newDeck);
+    setPlayerHands(nextHands);
+
+    const nextDone = handDone.map((d, idx) => (idx === i ? true : d));
+    completeCurrentHand(nextDone, i, draw.newDeck, nextHands, newBetRow);
+  };
+
+  const handleSplit = async () => {
+    if (gameOver) return;
+    const i = activeHandIndex;
+    const h = playerHands[i];
+    if (!h || h.length !== 2 || !canSplitPair(h[0], h[1])) return;
+    if (handDone[i]) return;
+    if (playerHands.length >= MAX_PLAYER_HANDS) {
+      alert(`Maximum ${MAX_PLAYER_HANDS} mains (re-split limité).`);
+      return;
     }
+
+    const pairIsAces = h[0].rank === "A" && h[1].rank === "A";
+    const extra = handBets[i];
+    if (extra > chips) {
+      alert("Solde insuffisant pour splitter.");
+      return;
+    }
+
+    setStaking(true);
+    const bal = await stakeAmount(extra);
+    setStaking(false);
+    if (bal === null) return;
+    applyServerBalance(bal);
+
+    let dk = [...deckRef.current];
+    const draw1 = drawCard(dk);
+    dk = draw1.newDeck;
+    const draw2 = drawCard(dk);
+    dk = draw2.newDeck;
+
+    const handA: Card[] = [h[0], draw1.card];
+    const handB: Card[] = [h[1], draw2.card];
+
+    const newHands = [...playerHands.slice(0, i), handA, handB, ...playerHands.slice(i + 1)];
+    const newBets = [...handBets.slice(0, i), extra, extra, ...handBets.slice(i + 1)];
+    const newDoubled = [...handDoubled.slice(0, i), false, false, ...handDoubled.slice(i + 1)];
+
+    if (pairIsAces) {
+      const newDone = [...handDone.slice(0, i), true, true, ...handDone.slice(i + 1)];
+      setDeck(dk);
+      setPlayerHands(newHands);
+      setHandBets(newBets);
+      setHandDoubled(newDoubled);
+      setHandDone(newDone);
+
+      if (newDone.every(Boolean)) {
+        const queue: PendingHandSettlement[] = newHands.map((cards, idx) => ({
+          cards,
+          wager: newBets[idx],
+          busted: calculateScore(cards) > 21,
+        }));
+        void finalizeMultiHandRound(queue, dealerHand, dk);
+      } else {
+        const next = findFirstIncompleteHand(newDone);
+        setActiveHandIndex(next >= 0 ? next : 0);
+      }
+      return;
+    }
+
+    const newDone = [...handDone.slice(0, i), false, false, ...handDone.slice(i + 1)];
+    setDeck(dk);
+    setPlayerHands(newHands);
+    setHandBets(newBets);
+    setHandDoubled(newDoubled);
+    setHandDone(newDone);
+    setActiveHandIndex(i);
+  };
+
+  const handleQuit = () => {
+    if (!gameOver) {
+      const ok = window.confirm(
+        "Abandonner la main en cours ? Ta mise reste perdue (aucun remboursement)."
+      );
+      if (!ok) return;
+    }
+    navigate("/jeu");
   };
 
   useEffect(() => {
@@ -283,20 +515,25 @@ export default function Blackjack() {
       .catch(() => {});
   }, []);
 
-  const playerScore = calculateScore(playerHand);
   const dealerScore = gameOver
     ? calculateScore(dealerHand)
     : getDealerVisibleScore(dealerHand);
 
-  const handleQuit = () => {
-    if (!gameOver) {
-      const ok = window.confirm(
-        "Abandonner la main en cours ? Ta mise reste perdue (aucun remboursement)."
-      );
-      if (!ok) return;
-    }
-    navigate("/jeu");
-  };
+  const currentHand = playerHands[activeHandIndex];
+
+  const canDouble =
+    !gameOver &&
+    currentHand &&
+    currentHand.length === 2 &&
+    !handDoubled[activeHandIndex] &&
+    !handDone[activeHandIndex];
+
+  const canSplit =
+    !gameOver &&
+    playerHands.length < MAX_PLAYER_HANDS &&
+    currentHand?.length === 2 &&
+    canSplitPair(currentHand[0], currentHand[1]) &&
+    !handDone[activeHandIndex];
 
   return (
     <div className="blackjack-page">
@@ -354,17 +591,27 @@ export default function Blackjack() {
           </div>
         </div>
 
-        <div className="hand-section">
-          <div className="hand-header">
-            <h2>Joueur</h2>
-            <span>Score : {playerScore}</span>
-          </div>
+        <div className="player-hands-stack">
+          {playerHands.map((hand, hi) => (
+            <div
+              key={hi}
+              className={`hand-section player-hand-block ${hi === activeHandIndex && !gameOver ? "player-hand-block--active" : ""}`}
+            >
+              <div className="hand-header">
+                <h2>{playerHands.length > 1 ? `Joueur — main ${hi + 1}` : "Joueur"}</h2>
+                <span>
+                  Score : {calculateScore(hand)} · Mise : {handBets[hi] ?? 0}
+                  {handDoubled[hi] ? " (doublée)" : ""}
+                </span>
+              </div>
 
-          <div className="cards-row">
-            {playerHand.map((card, index) => (
-              <PlayingCard key={`${card.suit}-${card.rank}-${index}`} card={card} />
-            ))}
-          </div>
+              <div className="cards-row">
+                {hand.map((card, index) => (
+                  <PlayingCard key={`${hi}-${card.suit}-${card.rank}-${index}`} card={card} />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="action-row">
@@ -374,13 +621,29 @@ export default function Blackjack() {
             onClick={() => void placeBetAndDeal()}
             disabled={!gameOver || staking || bet <= 0 || bet > chips}
           >
-            {staking ? "Mise…" : "Miser et jouer"}
+            {staking ? "Mise…" : "Bet & Play"}
           </button>
-          <button className="secondary-btn" onClick={handleHit} disabled={gameOver}>
+          <button className="secondary-btn" onClick={handleHit} disabled={gameOver || !currentHand || handDone[activeHandIndex]}>
             Hit
           </button>
-          <button className="secondary-btn" onClick={handleStand} disabled={gameOver}>
-            Stand
+          <button className="secondary-btn" onClick={handleStand} disabled={gameOver || !currentHand || handDone[activeHandIndex]}>
+            Stay
+          </button>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => void handleDouble()}
+            disabled={gameOver || staking || !canDouble}
+          >
+            Double
+          </button>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => void handleSplit()}
+            disabled={gameOver || staking || !canSplit}
+          >
+            Split
           </button>
         </div>
       </div>

@@ -136,6 +136,23 @@
   margin-bottom: 24px;
 }
 
+.player-hands-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.player-hand-block {
+  margin-bottom: 0;
+}
+
+.player-hand-block--active {
+  outline: 2px solid #facc15;
+  outline-offset: 3px;
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.2);
+}
+
 .hand-header {
   display: flex;
   justify-content: space-between;
