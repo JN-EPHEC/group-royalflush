@@ -27,3 +27,11 @@ export function clearSession() {
   localStorage.removeItem("token");
   localStorage.removeItem(USER_KEY);
 }
+
+/** Met à jour le solde en cache (ex. après une partie) pour que le home affiche le bon montant. */
+export function updateStoredUserBalance(balance: number) {
+  const token = localStorage.getItem("token");
+  const user = getStoredUser();
+  if (!token || !user) return;
+  saveSession(token, { ...user, balance });
+}

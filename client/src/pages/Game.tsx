@@ -26,7 +26,8 @@ export default function Game() {
     if (cached?.username) {
       setUser(cached);
       setLoading(false);
-      return;
+    } else {
+      setLoading(true);
     }
 
     axios

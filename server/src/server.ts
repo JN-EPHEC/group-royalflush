@@ -8,6 +8,7 @@ import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
 import cors from 'cors';
 import authRoutes from "./routes/auth.routes.js";
+import blackjackRoutes from "./routes/blackjack.routes";
 
 
 const app = express();
@@ -21,6 +22,7 @@ app.use(express.static(path.join(__dirname,"../public")));
 app.use(requestLogger)
 
 app.use("/", authRoutes);
+app.use("/api/blackjack", blackjackRoutes);
 
 app.use(errorHandler)
 
