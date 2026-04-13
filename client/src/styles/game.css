@@ -72,17 +72,23 @@
 .game-blackjack-link {
   display: inline-block;
   margin-top: 20px;
-  padding: 12px 22px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 215, 0, 0.55);
-  background: linear-gradient(180deg, rgba(255, 215, 0, 0.25), rgba(255, 180, 0, 0.12));
-  color: #fff;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  padding: 0;              /* important */
+  border: none;           /* supprime la bordure */
+  background: none;       /* supprime le fond */
 }
 
 .game-blackjack-link:hover {
   background: linear-gradient(180deg, rgba(255, 215, 0, 0.4), rgba(255, 180, 0, 0.2));
   border-color: gold;
+}
+
+.game-card-image {
+  width: 300px;   /* change ici la taille */
+  max-width: 100%;
+  border-radius: 12px;
+  transition: 0.2s;
+}
+
+.game-card-image:hover {
+  transform: scale(1.05);
 }

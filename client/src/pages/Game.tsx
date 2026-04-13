@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import "../styles/auth.css";
 import "../styles/game.css";
+import blackjackImg from "../assets/icon_BlackJack.jpg";
 import {
   clearSession,
   getStoredUser,
@@ -78,7 +79,7 @@ export default function Game() {
           jeu (blackjack, roulette, etc.).
         </p>
         <Link to="/blackjack" className="game-blackjack-link">
-          Jouer au Blackjack
+          <img src={blackjackImg} alt="Blackjack" className="game-card-image" />
         </Link>
       </main>
     </div>
