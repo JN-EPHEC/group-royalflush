@@ -10,7 +10,6 @@ import cors from 'cors';
 import authRoutes from "./routes/auth.routes.js";
 import blackjackRoutes from "./routes/blackjack.routes";
 
-
 const app = express();
 
 app.use(cors()); // Autorise tout le monde (acceptable uniquement en dev)
@@ -25,6 +24,7 @@ app.use("/", authRoutes);
 app.use("/api/blackjack", blackjackRoutes);
 
 app.use(errorHandler)
+
 
 async function start() {
   try {
