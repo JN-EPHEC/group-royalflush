@@ -9,6 +9,7 @@ import { swaggerSpec } from "./config/swagger";
 import cors from 'cors';
 import authRoutes from "./routes/auth.routes.js";
 import blackjackRoutes from "./routes/blackjack.routes";
+import adminRoutes from "./routes/admin.routes";
 
 
 const app = express();
@@ -23,6 +24,7 @@ app.use(requestLogger)
 
 app.use("/", authRoutes);
 app.use("/api/blackjack", blackjackRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use(errorHandler)
 
