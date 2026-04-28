@@ -17,6 +17,7 @@ import {
 type GameStatus =
   | "idle"
   | "playing"
+  | "insurance"
   | "player-blackjack"
   | "player-bust"
   | "dealer-bust"
@@ -50,6 +51,8 @@ export default function Blackjack() {
   const [chips, setChips] = useState(0);
   const [bet, setBet] = useState(10);
   const [staking, setStaking] = useState(false);
+  const [insuranceOffered, setInsuranceOffered] = useState(false);
+  const [insuranceMax, setInsuranceMax] = useState(0);
 
   const deckRef = useRef(deck);
 
@@ -62,7 +65,10 @@ export default function Blackjack() {
     updateStoredUserBalance(balance);
   };
 
-  const stakeAmount = async (amount: number): Promise<number | null> => {
+  const stakeAmount = async (
+    amount: number,
+    stakeKind: "MAIN_BET" | "INSURANCE_BET" = "MAIN_BET"
+  ): Promise<number | null> => {
     const token = localStorage.getItem("token");
     if (!token) return null;
     const res = await fetch(`${API}/api/blackjack/stake`, {
@@ -71,7 +77,7 @@ export default function Blackjack() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ amount }),
+      body: JSON.stringify({ amount, stakeKind }),
     });
     const json = (await res.json().catch(() => ({}))) as { balance?: number; error?: string };
     if (!res.ok) {
@@ -92,6 +98,8 @@ export default function Blackjack() {
           return `Main ${activeHandIndex + 1} / ${playerHands.length}`;
         }
         return "Partie en cours…";
+      case "insurance":
+        return "Le croupier montre un As. Tu peux prendre une assurance (max 50% de la mise).";
       case "player-blackjack":
         return "Blackjack naturel ! Tu gagnes (3:2).";
       case "player-bust":
@@ -115,7 +123,9 @@ export default function Blackjack() {
     finalDealerHand: Card[],
     finalPlayerScore: number,
     finalDealerScore: number,
-    wager: number
+    wager: number,
+    insuranceBet = 0,
+    dealerHasBlackjack = false
   ): Promise<number | null> => {
     try {
       const token = localStorage.getItem("token");
@@ -128,6 +138,8 @@ export default function Blackjack() {
         dealerHand: finalDealerHand,
         playerScore: finalPlayerScore,
         dealerScore: finalDealerScore,
+        insuranceBet,
+        dealerHasBlackjack,
       };
 
       const res = await fetch(`${API}/api/blackjack/save`, {
@@ -152,7 +164,9 @@ export default function Blackjack() {
     result: GameStatus,
     pHand: Card[],
     dHand: Card[],
-    wager: number
+    wager: number,
+    insuranceBet = 0,
+    dealerHasBlackjack = false
   ) => {
     const pScore = calculateScore(pHand);
     const dScore = calculateScore(dHand);
@@ -160,7 +174,16 @@ export default function Blackjack() {
     setGameOver(true);
     setEndSummary(null);
 
-    const newBalance = await saveGameToDatabase(result, pHand, dHand, pScore, dScore, wager);
+    const newBalance = await saveGameToDatabase(
+      result,
+      pHand,
+      dHand,
+      pScore,
+      dScore,
+      wager,
+      insuranceBet,
+      dealerHasBlackjack
+    );
     if (newBalance !== null) {
       applyServerBalance(newBalance);
     } else {
@@ -311,6 +334,8 @@ export default function Blackjack() {
     }
 
     setEndSummary(null);
+    setInsuranceOffered(false);
+    setInsuranceMax(0);
 
     let newDeck = shuffleDeck(createDeck());
 
@@ -340,16 +365,91 @@ export default function Blackjack() {
 
     const playerBJ = isBlackjack(firstHand);
     const dealerBJ = isBlackjack(newDealerHand);
+    const dealerShowsAce = newDealerHand[0]?.rank === "A";
+    const dealerShowsTen =
+      newDealerHand[0]?.rank === "10" ||
+      newDealerHand[0]?.rank === "J" ||
+      newDealerHand[0]?.rank === "Q" ||
+      newDealerHand[0]?.rank === "K";
 
-    if (playerBJ && dealerBJ) {
-      await finishNaturalRound("push", firstHand, newDealerHand, wager);
-    } else if (playerBJ) {
-      await finishNaturalRound("player-blackjack", firstHand, newDealerHand, wager);
-    } else if (dealerBJ) {
-      await finishNaturalRound("dealer-wins", firstHand, newDealerHand, wager);
-    } else {
+    const resolveInitialDealerCheck = async (chosenInsuranceBet: number) => {
+      // Le peek dealer est fait uniquement si la carte visible est un As (flow assurance).
+      // Si la carte visible est un 10, on ne révèle pas le blackjack tout de suite.
+      if (dealerShowsTen) {
+        setGameStatus("playing");
+        return;
+      }
+
+      if (dealerBJ) {
+        const result: GameStatus = playerBJ ? "push" : "dealer-wins";
+        await finishNaturalRound(
+          result,
+          firstHand,
+          newDealerHand,
+          wager,
+          chosenInsuranceBet,
+          true
+        );
+        return;
+      }
+
+      if (playerBJ) {
+        await finishNaturalRound("player-blackjack", firstHand, newDealerHand, wager, chosenInsuranceBet, false);
+        return;
+      }
       setGameStatus("playing");
+    };
+
+    if (dealerShowsAce) {
+      const max = Math.floor(wager / 2);
+      setInsuranceMax(max);
+      setInsuranceOffered(true);
+      setGameStatus("insurance");
+      return;
     }
+
+    await resolveInitialDealerCheck(0);
+  };
+
+  const resolveInsuranceChoice = async (withInsurance: boolean) => {
+    if (!insuranceOffered || gameOver) return;
+    const wager = handBets[0] ?? 0;
+    const firstHand = playerHands[0];
+    const dHand = dealerHand;
+    if (!firstHand || wager <= 0 || dHand.length < 2) return;
+
+    const dealerBJ = isBlackjack(dHand);
+    const playerBJ = isBlackjack(firstHand);
+    let chosenInsuranceBet = 0;
+
+    if (withInsurance) {
+      const fixedInsurance = insuranceMax;
+      if (fixedInsurance <= 0) {
+        alert("Montant d'assurance invalide.");
+        return;
+      }
+      setStaking(true);
+      const bal = await stakeAmount(fixedInsurance, "INSURANCE_BET");
+      setStaking(false);
+      if (bal === null) return;
+      applyServerBalance(bal);
+      chosenInsuranceBet = fixedInsurance;
+    }
+
+    setInsuranceOffered(false);
+    setInsuranceMax(0);
+
+    if (dealerBJ) {
+      const result: GameStatus = playerBJ ? "push" : "dealer-wins";
+      await finishNaturalRound(result, firstHand, dHand, wager, chosenInsuranceBet, true);
+      return;
+    }
+
+    if (playerBJ) {
+      await finishNaturalRound("player-blackjack", firstHand, dHand, wager, chosenInsuranceBet, false);
+      return;
+    }
+    setGameStatus("playing");
   };
 
   const handleHit = () => {
@@ -523,6 +623,7 @@ export default function Blackjack() {
 
   const canDouble =
     !gameOver &&
+    !insuranceOffered &&
     currentHand &&
     currentHand.length === 2 &&
     !handDoubled[activeHandIndex] &&
@@ -530,6 +631,7 @@ export default function Blackjack() {
 
   const canSplit =
     !gameOver &&
+    !insuranceOffered &&
     playerHands.length < MAX_PLAYER_HANDS &&
     currentHand?.length === 2 &&
     canSplitPair(currentHand[0], currentHand[1]) &&
@@ -619,21 +721,21 @@ export default function Blackjack() {
             type="button"
             className="primary-btn"
             onClick={() => void placeBetAndDeal()}
-            disabled={!gameOver || staking || bet <= 0 || bet > chips}
+            disabled={!gameOver || staking || insuranceOffered || bet <= 0 || bet > chips}
           >
             {staking ? "Mise…" : "Bet & Play"}
           </button>
-          <button className="secondary-btn" onClick={handleHit} disabled={gameOver || !currentHand || handDone[activeHandIndex]}>
+          <button className="secondary-btn" onClick={handleHit} disabled={gameOver || insuranceOffered || !currentHand || handDone[activeHandIndex]}>
             Hit
           </button>
-          <button className="secondary-btn" onClick={handleStand} disabled={gameOver || !currentHand || handDone[activeHandIndex]}>
+          <button className="secondary-btn" onClick={handleStand} disabled={gameOver || insuranceOffered || !currentHand || handDone[activeHandIndex]}>
             Stay
           </button>
           <button
             type="button"
             className="secondary-btn"
             onClick={() => void handleDouble()}
-            disabled={gameOver || staking || !canDouble}
+            disabled={gameOver || staking || insuranceOffered || !canDouble}
           >
             Double
           </button>
@@ -641,11 +743,22 @@ export default function Blackjack() {
             type="button"
             className="secondary-btn"
             onClick={() => void handleSplit()}
-            disabled={gameOver || staking || !canSplit}
+            disabled={gameOver || staking || insuranceOffered || !canSplit}
           >
             Split
           </button>
         </div>
+        {insuranceOffered ? (
+          <div className="action-row" style={{ marginTop: 10 }}>
+            <span>Assurance automatique: {insuranceMax} (50% de la mise)</span>
+            <button type="button" className="secondary-btn" disabled={staking} onClick={() => void resolveInsuranceChoice(true)}>
+              Prendre assurance
+            </button>
+            <button type="button" className="secondary-btn" disabled={staking} onClick={() => void resolveInsuranceChoice(false)}>
+              Pas d'assurance
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
