@@ -3,6 +3,8 @@ export type StoredUser = {
   id: number;
   email: string;
   username: string;
+  role?: "USER" | "ADMIN";
+  status?: "ACTIVE" | "BLOCKED";
   balance: number;
 };
 

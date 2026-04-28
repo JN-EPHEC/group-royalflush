@@ -81,6 +81,11 @@ export default function Game() {
         <Link to="/blackjack" className="game-blackjack-link">
           <img src={blackjackImg} alt="Blackjack" className="game-card-image" />
         </Link>
+        {user.role === "ADMIN" ? (
+          <p className="game-placeholder">
+            <Link to="/admin">Aller au panneau Admin</Link>
+          </p>
+        ) : null}
       </main>
     </div>
   );
