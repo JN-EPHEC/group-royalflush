@@ -45,11 +45,23 @@ export async function stakeBlackjack(req: Request, res: Response) {
       if (user.balance < amount) {
         throw new Error("INSUFFICIENT_FUNDS");
       }
-      return tx.user.update({
+      const updatedUser = await tx.user.update({
         where: { id: userId },
         data: { balance: user.balance - amount },
-        select: { balance: true },
+        select: { id: true, balance: true },
       });
+
+      await tx.transaction.create({
+        data: {
+          userId,
+          amount,
+          type: "BLACKJACK_BET",
+          balanceBefore: user.balance,
+          balanceAfter: updatedUser.balance,
+        },
+      });
+
+      return updatedUser;
     });
 
     return res.status(200).json({ balance: updated.balance });
@@ -94,6 +106,14 @@ export async function saveBlackjackGame(req: Request, res: Response) {
     const credit = payoutCredits(betAmount, resultStr);
 
     const finalUser = await prisma.$transaction(async (tx) => {
+      const userBefore = await tx.user.findUnique({
+        where: { id: userId },
+        select: { id: true, balance: true },
+      });
+      if (!userBefore) {
+        throw new Error("USER_NOT_FOUND");
+      }
+
       await tx.blackjackGame.create({
         data: {
           userId,
@@ -105,17 +125,26 @@ export async function saveBlackjackGame(req: Request, res: Response) {
       });
 
       if (credit > 0) {
-        return tx.user.update({
+        const updatedUser = await tx.user.update({
           where: { id: userId },
           data: { balance: { increment: credit } },
-          select: { balance: true },
+          select: { id: true, balance: true },
         });
+
+        await tx.transaction.create({
+          data: {
+            userId,
+            amount: credit,
+            type: "BLACKJACK_PAYOUT",
+            balanceBefore: userBefore.balance,
+            balanceAfter: updatedUser.balance,
+          },
+        });
+
+        return updatedUser;
       }
 
-      return tx.user.findUnique({
-        where: { id: userId },
-        select: { balance: true },
-      });
+      return userBefore;
     });
 
     if (!finalUser) {

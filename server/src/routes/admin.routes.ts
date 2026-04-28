@@ -37,6 +37,33 @@ router.get("/users", async (_req, res) => {
   }
 });
 
+router.get("/transactions", async (req, res) => {
+  try {
+    const all = String(req.query.all ?? "").toLowerCase() === "true";
+    const rawLimit = Number(req.query.limit ?? 20);
+    const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 500) : 20;
+
+    const transactions = await prisma.transaction.findMany({
+      ...(all ? {} : { take: limit }),
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    return res.status(200).json(transactions);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 router.get("/users/:id/transactions", async (req, res) => {
   try {
     const targetUserId = parseId(req.params.id);
@@ -259,6 +286,56 @@ router.post("/users/:id/withdraw", async (req, res) => {
       if (err.message === "INSUFFICIENT_FUNDS") {
         return res.status(400).json({ error: "Solde insuffisant" });
       }
+    }
+    console.error(err);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+router.post("/users/:id/deposit", async (req, res) => {
+  try {
+    const targetUserId = parseId(req.params.id);
+    if (targetUserId == null) {
+      return res.status(400).json({ error: "ID utilisateur invalide" });
+    }
+
+    const amount = Number(req.body?.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: "Montant invalide" });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: targetUserId },
+        select: { id: true, balance: true },
+      });
+      if (!user) {
+        throw new Error("USER_NOT_FOUND");
+      }
+
+      const updatedUser = await tx.user.update({
+        where: { id: targetUserId },
+        data: { balance: { increment: amount } },
+        select: { id: true, email: true, username: true, balance: true },
+      });
+
+      await tx.transaction.create({
+        data: {
+          userId: targetUserId,
+          amount,
+          type: "ADMIN_DEPOSIT",
+          balanceBefore: user.balance,
+          balanceAfter: user.balance + amount,
+        },
+      });
+
+      return updatedUser;
+    });
+
+    return res.status(200).json(result);
+  } catch (err) {
+    if (err instanceof Error && err.message === "USER_NOT_FOUND") {
+      return res.status(404).json({ error: "Utilisateur introuvable" });
     }
     console.error(err);
     return res.status(500).json({ error: "Erreur serveur" });
