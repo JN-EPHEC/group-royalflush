@@ -1,32 +1,7 @@
-import express from "express";
 import sequelize from "./config/database";
 import "./models/User"; // IMPORTANT: charge le modèle
-import path from 'path'
-import { requestLogger } from "./middlewares/logger";
-import { errorHandler } from "./middlewares/errorHandler";
-import swaggerUi from "swagger-ui-express";
-import { swaggerSpec } from "./config/swagger";
-import cors from 'cors';
-import authRoutes from "./routes/auth.routes.js";
-import blackjackRoutes from "./routes/blackjack.routes";
-import adminRoutes from "./routes/admin.routes";
+import app from "./app";
 
-
-const app = express();
-
-app.use(cors()); // Autorise tout le monde (acceptable uniquement en dev)
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-app.use(express.json());
-
-app.use(express.static(path.join(__dirname,"../public")));
-app.use(requestLogger)
-
-app.use("/", authRoutes);
-app.use("/api/blackjack", blackjackRoutes);
-app.use("/api/admin", adminRoutes);
-
-app.use(errorHandler)
 
 async function start() {
   try {
