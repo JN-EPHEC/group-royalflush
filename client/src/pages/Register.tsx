@@ -1,6 +1,7 @@
 import { useState } from "react";
 import "../styles/auth.css";
 import axios from "axios";
+import { API_BASE_URL } from "../lib/api";
 
 const MIN_PASSWORD_LENGTH = 6;
 const MIN_USERNAME_LENGTH = 3;
@@ -51,7 +52,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await axios.post("http://localhost:3000/register", {
+      await axios.post(`${API_BASE_URL}/register`, {
         username: username.trim(),
         email: email.trim(),
         password,

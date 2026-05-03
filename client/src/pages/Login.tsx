@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import "../styles/auth.css";
 import axios from "axios";
 import { saveSession, type StoredUser } from "../lib/authStorage";
+import { API_BASE_URL } from "../lib/api";
 
 function validateLogin(email: string, password: string): string | null {
   const e = email.trim();
@@ -38,7 +39,7 @@ export default function Login() {
       const res = await axios.post<{
         token: string;
         user: StoredUser;
-      }>("http://localhost:3000/login", {
+      }>(`${API_BASE_URL}/login`, {
         email: email.trim(),
         password,
       });
