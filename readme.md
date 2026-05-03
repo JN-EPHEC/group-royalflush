@@ -17,7 +17,7 @@ Le projet met en œuvre une architecture full-stack complète avec :
 
 # 🔗 Accès à l’application
 
-- 🌐 URL : http://VOTRE-IP
+- 🌐 URL : [https://](https://blog.l1-7.ephec-ti.be/)
 - 📦 Repository : (lien GitHub)
 
 ---
