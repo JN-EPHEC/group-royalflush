@@ -27,7 +27,8 @@ jobs:
           npm run build
         working-directory: ./client
 
-      - name: Deploy to VPS via SCP
+      # SCP vers le home (écriture OK) — pas directement sous /var/www (souvent root:www-data → Permission denied)
+      - name: Upload dist to VPS (home)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -35,5 +36,21 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "client/dist/*"
-          target: "/var/www/html/"
+          target: "/home/${{ secrets.SERVER_USER }}/dist-upload/"
           strip_components: 2
+
+      # Adapte WEB_ROOT si ton Nginx utilise autre chose (ex. /var/www/html). Sudo sans mot de passe requis pour ces commandes.
+      - name: Install under /var/www (sudo)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          port: 54321
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            WEB_ROOT=/var/www/royalflush
+            sudo mkdir -p "$WEB_ROOT"
+            sudo rm -rf "$WEB_ROOT"/*
+            sudo cp -r /home/${{ secrets.SERVER_USER }}/dist-upload/* "$WEB_ROOT"/
+            sudo chown -R www-data:www-data "$WEB_ROOT"
+            sudo nginx -t && sudo systemctl reload nginx
