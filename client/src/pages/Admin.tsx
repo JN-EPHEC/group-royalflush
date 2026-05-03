@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { clearSession, getStoredUser, saveSession, type StoredUser } from "../lib/authStorage";
+import { API_BASE_URL } from "../lib/api";
 import "../styles/auth.css";
 import "../styles/game.css";
 
@@ -22,8 +23,6 @@ type AdminTransaction = {
   balanceAfter: number;
   createdAt: string;
 };
-
-const API = "http://localhost:3000";
 
 function amountColorByType(type: string): string {
   const t = type.toUpperCase();
@@ -62,7 +61,7 @@ export default function Admin() {
 
   const refreshUsers = async () => {
     if (!token) return;
-    const res = await axios.get<AdminUser[]>(`${API}/api/admin/users`, {
+    const res = await axios.get<AdminUser[]>(`${API_BASE_URL}/api/admin/users`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     setUsers(res.data);
@@ -76,7 +75,7 @@ export default function Admin() {
     setLoadingTransactions(true);
     try {
       const res = await axios.get<AdminTransaction[]>(
-        `${API}/api/admin/users/${userId}/transactions`,
+        `${API_BASE_URL}/api/admin/users/${userId}/transactions`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -96,7 +95,7 @@ export default function Admin() {
     }
 
     axios
-      .get<StoredUser>(`${API}/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .get<StoredUser>(`${API_BASE_URL}/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => {
         if (res.data.role !== "ADMIN") {
           navigate("/jeu", { replace: true });
@@ -139,7 +138,7 @@ export default function Admin() {
     setLoading(true);
     try {
       const res = await axios.post<{ id: number; balance: number }>(
-        `${API}/api/admin/users/${selectedUserId}/deposit`,
+        `${API_BASE_URL}/api/admin/users/${selectedUserId}/deposit`,
         { amount },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -181,7 +180,7 @@ export default function Admin() {
     setLoading(true);
     try {
       const res = await axios.post<{ id: number; balance: number }>(
-        `${API}/api/admin/users/${selectedUserId}/withdraw`,
+        `${API_BASE_URL}/api/admin/users/${selectedUserId}/withdraw`,
         { amount, reason: "Retrait depuis panneau admin" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -219,7 +218,7 @@ export default function Admin() {
     setLoading(true);
     try {
       await axios.patch(
-        `${API}/api/admin/users/${selectedUserId}/block`,
+        `${API_BASE_URL}/api/admin/users/${selectedUserId}/block`,
         { reason: "Blocage depuis panneau admin" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -251,7 +250,7 @@ export default function Admin() {
     setLoading(true);
     try {
       await axios.patch(
-        `${API}/api/admin/users/${selectedUserId}/unblock`,
+        `${API_BASE_URL}/api/admin/users/${selectedUserId}/unblock`,
         { reason: "Déblocage depuis panneau admin" },
         { headers: { Authorization: `Bearer ${token}` } }
       );

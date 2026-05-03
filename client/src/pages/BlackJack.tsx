@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import PlayingCard from "../components/PlayingCard";
 import "../styles/blackjack.css";
 import { updateStoredUserBalance } from "../lib/authStorage";
+import { API_BASE_URL } from "../lib/api";
 import {
   type Card,
   calculateScore,
@@ -31,7 +32,6 @@ type PendingHandSettlement = {
   busted: boolean;
 };
 
-const API = "http://localhost:3000";
 /** Nombre max de mains (re-splits inclus), règle type casino. */
 const MAX_PLAYER_HANDS = 4;
 
@@ -71,7 +71,7 @@ export default function Blackjack() {
   ): Promise<number | null> => {
     const token = localStorage.getItem("token");
     if (!token) return null;
-    const res = await fetch(`${API}/api/blackjack/stake`, {
+    const res = await fetch(`${API_BASE_URL}/api/blackjack/stake`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -142,7 +142,7 @@ export default function Blackjack() {
         dealerHasBlackjack,
       };
 
-      const res = await fetch(`${API}/api/blackjack/save`, {
+      const res = await fetch(`${API_BASE_URL}/api/blackjack/save`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -506,7 +506,6 @@ export default function Blackjack() {
 
     const draw = drawCard(deckRef.current);
     const newHand = [...h, draw.card];
-    const score = calculateScore(newHand);
     const nextHands = playerHands.map((row, idx) => (idx === i ? newHand : row));
     setDeck(draw.newDeck);
     setPlayerHands(nextHands);
@@ -603,7 +602,7 @@ export default function Blackjack() {
       setChips(0);
       return;
     }
-    fetch(`${API}/me`, {
+    fetch(`${API_BASE_URL}/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => (r.ok ? r.json() : null))

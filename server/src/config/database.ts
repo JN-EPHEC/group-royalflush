@@ -14,9 +14,9 @@ const sequelize = process.env.DATABASE_URL
     })
   : new Sequelize({
       username: process.env.DB_USER || "postgres",
-      password: process.env.DB_PASSWORD,
+      password: process.env.DB_PASSWORD ?? "",
       database: process.env.DB_NAME || "postgres",
-      host: process.env.DB_HOST,
+      host: process.env.DB_HOST ?? "127.0.0.1",
       port: Number(process.env.DB_PORT || 5432),
       dialect: "postgres",
       dialectOptions: {

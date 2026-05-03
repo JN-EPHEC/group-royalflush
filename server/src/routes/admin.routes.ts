@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { authenticateTokenActive } from "../middleware/authJwt.js";
 import { requireAdmin } from "../middleware/requireAdmin";
+import { adminActionNotifier } from "../patterns/adminActionObserver";
 
 const router = Router();
 
@@ -161,6 +162,14 @@ router.patch("/users/:id/block", async (req, res) => {
       return blockedUser;
     });
 
+    adminActionNotifier.notify({
+      actionType: "BLOCK_USER",
+      adminId,
+      targetUserId,
+      reason,
+      createdAt: new Date().toISOString(),
+    });
+
     return res.status(200).json(updated);
   } catch (err) {
     if (err instanceof Error && err.message === "USER_NOT_FOUND") {
@@ -206,6 +215,14 @@ router.patch("/users/:id/unblock", async (req, res) => {
       });
 
       return activeUser;
+    });
+
+    adminActionNotifier.notify({
+      actionType: "UNBLOCK_USER",
+      adminId,
+      targetUserId,
+      reason,
+      createdAt: new Date().toISOString(),
     });
 
     return res.status(200).json(updated);
@@ -277,6 +294,15 @@ router.post("/users/:id/withdraw", async (req, res) => {
       return updatedUser;
     });
 
+    adminActionNotifier.notify({
+      actionType: "WITHDRAW_FUNDS",
+      adminId,
+      targetUserId,
+      amount,
+      reason,
+      createdAt: new Date().toISOString(),
+    });
+
     return res.status(200).json(result);
   } catch (err) {
     if (err instanceof Error) {
@@ -294,6 +320,7 @@ router.post("/users/:id/withdraw", async (req, res) => {
 
 router.post("/users/:id/deposit", async (req, res) => {
   try {
+    const adminId = req.userId ?? null;
     const targetUserId = parseId(req.params.id);
     if (targetUserId == null) {
       return res.status(400).json({ error: "ID utilisateur invalide" });
@@ -332,6 +359,14 @@ router.post("/users/:id/deposit", async (req, res) => {
       return updatedUser;
     });
 
+    adminActionNotifier.notify({
+      actionType: "DEPOSIT_FUNDS",
+      adminId,
+      targetUserId,
+      amount,
+      createdAt: new Date().toISOString(),
+    });
+
     return res.status(200).json(result);
   } catch (err) {
     if (err instanceof Error && err.message === "USER_NOT_FOUND") {
@@ -366,6 +401,13 @@ router.patch("/users/:id/promote", async (req, res) => {
         role: true,
         status: true,
       },
+    });
+
+    adminActionNotifier.notify({
+      actionType: "PROMOTE_USER",
+      adminId,
+      targetUserId,
+      createdAt: new Date().toISOString(),
     });
 
     return res.status(200).json(updated);
