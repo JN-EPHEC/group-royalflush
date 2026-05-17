@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "verbatimModuleSyntax": false
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage",
+    "src/tests/**/*",
+    "src/routes/userRoutes.ts",
+    "src/controllers/userControllers.ts"
+  ]
+}

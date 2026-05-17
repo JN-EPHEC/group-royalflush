@@ -33,6 +33,8 @@ export async function stakeBlackjack(req: Request, res: Response) {
     }
 
     const amount = Number((req.body ?? {}).amount);
+    const stakeKindRaw = String((req.body ?? {}).stakeKind ?? "MAIN_BET").toUpperCase();
+    const stakeKind = stakeKindRaw === "INSURANCE_BET" ? "INSURANCE_BET" : "MAIN_BET";
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ error: "Montant de mise invalide" });
     }
@@ -45,11 +47,23 @@ export async function stakeBlackjack(req: Request, res: Response) {
       if (user.balance < amount) {
         throw new Error("INSUFFICIENT_FUNDS");
       }
-      return tx.user.update({
+      const updatedUser = await tx.user.update({
         where: { id: userId },
         data: { balance: user.balance - amount },
-        select: { balance: true },
+        select: { id: true, balance: true },
       });
+
+      await tx.transaction.create({
+        data: {
+          userId,
+          amount,
+          type: stakeKind === "INSURANCE_BET" ? "BLACKJACK_INSURANCE_BET" : "BLACKJACK_BET",
+          balanceBefore: user.balance,
+          balanceAfter: updatedUser.balance,
+        },
+      });
+
+      return updatedUser;
     });
 
     return res.status(200).json({ balance: updated.balance });
@@ -74,12 +88,14 @@ export async function saveBlackjackGame(req: Request, res: Response) {
       return res.status(401).json({ error: "Non authentifié" });
     }
 
-    const { bet, result, playerScore, dealerScore } = req.body ?? {};
+    const { bet, result, playerScore, dealerScore, insuranceBet, dealerHasBlackjack } = req.body ?? {};
 
     const betAmount = Number(bet);
+    const insuranceBetAmount = Number(insuranceBet ?? 0);
     const pScore = Math.trunc(Number(playerScore));
     const dScore = Math.trunc(Number(dealerScore));
     const resultStr = typeof result === "string" ? result.trim() : "";
+    const dealerBJ = Boolean(dealerHasBlackjack);
 
     if (!Number.isFinite(betAmount) || betAmount <= 0) {
       return res.status(400).json({ error: "Mise invalide" });
@@ -90,10 +106,25 @@ export async function saveBlackjackGame(req: Request, res: Response) {
     if (!FINISH_RESULTS.has(resultStr)) {
       return res.status(400).json({ error: "Résultat invalide" });
     }
+    if (!Number.isFinite(insuranceBetAmount) || insuranceBetAmount < 0) {
+      return res.status(400).json({ error: "Assurance invalide" });
+    }
+    if (insuranceBetAmount > betAmount / 2) {
+      return res.status(400).json({ error: "Assurance trop élevée (max 50% de la mise)" });
+    }
 
     const credit = payoutCredits(betAmount, resultStr);
+    const insuranceCredit = dealerBJ && insuranceBetAmount > 0 ? insuranceBetAmount * 3 : 0;
 
     const finalUser = await prisma.$transaction(async (tx) => {
+      const userBefore = await tx.user.findUnique({
+        where: { id: userId },
+        select: { id: true, balance: true },
+      });
+      if (!userBefore) {
+        throw new Error("USER_NOT_FOUND");
+      }
+
       await tx.blackjackGame.create({
         data: {
           userId,
@@ -104,18 +135,40 @@ export async function saveBlackjackGame(req: Request, res: Response) {
         },
       });
 
-      if (credit > 0) {
-        return tx.user.update({
+      if (credit > 0 || insuranceCredit > 0) {
+        const updatedUser = await tx.user.update({
           where: { id: userId },
-          data: { balance: { increment: credit } },
-          select: { balance: true },
+          data: { balance: { increment: credit + insuranceCredit } },
+          select: { id: true, balance: true },
         });
+
+        if (credit > 0) {
+          await tx.transaction.create({
+            data: {
+              userId,
+              amount: credit,
+              type: "BLACKJACK_PAYOUT",
+              balanceBefore: userBefore.balance,
+              balanceAfter: userBefore.balance + credit,
+            },
+          });
+        }
+        if (insuranceCredit > 0) {
+          await tx.transaction.create({
+            data: {
+              userId,
+              amount: insuranceCredit,
+              type: "BLACKJACK_INSURANCE_PAYOUT",
+              balanceBefore: userBefore.balance + credit,
+              balanceAfter: updatedUser.balance,
+            },
+          });
+        }
+
+        return updatedUser;
       }
 
-      return tx.user.findUnique({
-        where: { id: userId },
-        select: { balance: true },
-      });
+      return userBefore;
     });
 
     if (!finalUser) {

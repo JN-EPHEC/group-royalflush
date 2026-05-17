@@ -3,6 +3,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Game from "./pages/Game";
 import Blackjack from "./pages/BlackJack";
+import Admin from "./pages/Admin";
 import Roulette from "./pages/Roulette";
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
         <Route path="/jeu" element={<Game />} />
         <Route path="/blackjack" element={<Blackjack />} />
         <Route path="/roulette" element={<Roulette />} />
+        <Route path="/admin" element={<Admin />} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,6 +1,6 @@
 import express from "express";
 import sequelize from "./config/database";
-import "./models/User"; // IMPORTANT: charge le modèle
+import "./models/User";
 import path from 'path'
 import { requestLogger } from "./middlewares/logger";
 import { errorHandler } from "./middlewares/errorHandler";
@@ -13,11 +13,9 @@ import rouletteRoutes from "./routes/roulette.routes";
 
 const app = express();
 
-app.use(cors()); // Autorise tout le monde (acceptable uniquement en dev)
+app.use(cors());
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
 app.use(express.json());
-
 app.use(express.static(path.join(__dirname,"../public")));
 app.use(requestLogger)
 
@@ -27,17 +25,15 @@ app.use("/api/roulette", rouletteRoutes);
 
 app.use(errorHandler)
 
-
 async function start() {
   try {
     await sequelize.authenticate();
     console.log("DB connectée");
     await sequelize.sync();
     console.log("DB synchronisée");
-
     app.listen(3000, () => console.log(" http://localhost:3000"));
   } catch (err) {
-    console.error("❌ Erreur démarrage :", err);
+    console.error("Erreur démarrage :", err);
   }
 }
 

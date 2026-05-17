@@ -10,6 +10,7 @@ import {
   saveSession,
   type StoredUser,
 } from "../lib/authStorage";
+import { API_BASE_URL } from "../lib/api";
 
 export default function Game() {
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ export default function Game() {
     }
 
     axios
-      .get<StoredUser>("http://localhost:3000/me", {
+      .get<StoredUser>(`${API_BASE_URL}/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => {
@@ -86,6 +87,11 @@ export default function Game() {
             <div className="game-roulette-card">🎡 Roulette</div>
           </Link>
         </div>
+        {user.role === "ADMIN" ? (
+          <p className="game-placeholder">
+            <Link to="/admin">Aller au panneau Admin</Link>
+          </p>
+        ) : null}
       </main>
     </div>
   );

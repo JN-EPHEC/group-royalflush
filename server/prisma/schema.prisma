@@ -6,19 +6,39 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum AdminActionType {
+  BLOCK_USER
+  UNBLOCK_USER
+  WITHDRAW_FUNDS
+}
+
 model User {
-  id             Int             @id @default(autoincrement())
-  email          String          @unique
+  id        Int           @id @default(autoincrement())
+  email     String        @unique
   /// Pseudo affiché en jeu (obligatoire à l’inscription ; nullable pour anciennes lignes)
-  username       String?         @unique
-  password       String
-  balance        Float           @default(1000)
-  createdAt      DateTime        @default(now())
+  username  String?       @unique
+  password  String
+  role      Role          @default(USER)
+  status    AccountStatus @default(ACTIVE)
+  balance   Float         @default(1000)
+  createdAt DateTime      @default(now())
 
   blackjackGames BlackjackGame[]
   rouletteGames  RouletteGame[]
   transactions   Transaction[]
   refreshTokens  RefreshToken[]
+  adminActions   AdminActionLog[] @relation("AdminActions")
+  targetActions  AdminActionLog[] @relation("TargetActions")
 }
 
 model BlackjackGame {
@@ -65,4 +85,17 @@ model RefreshToken {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminActionLog {
+  id           Int             @id @default(autoincrement())
+  adminId      Int
+  targetUserId Int
+  actionType   AdminActionType
+  amount       Float?
+  reason       String?
+  createdAt    DateTime        @default(now())
+
+  admin      User @relation("AdminActions", fields: [adminId], references: [id], onDelete: Cascade)
+  targetUser User @relation("TargetActions", fields: [targetUserId], references: [id], onDelete: Cascade)
 }

@@ -9,6 +9,7 @@
   "scripts": {
     "postinstall": "prisma generate",
     "test": "jest",
+    "build": "tsc -p tsconfig.build.json",
     "dev": "tsx --watch src/server.ts",
     "start": "tsx --watch src/server.ts",
     "test:watch": "jest --watch",
