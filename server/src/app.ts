@@ -7,6 +7,7 @@ import { errorHandler } from "./middlewares/errorHandler";
 import { swaggerSpec } from "./config/swagger";
 import authRoutes from "./routes/auth.routes.js";
 import blackjackRoutes from "./routes/blackjack.routes";
+import rouletteRoutes from "./routes/roulette.routes";
 import adminRoutes from "./routes/admin.routes";
 
 const app = express();
@@ -19,6 +20,7 @@ app.use(requestLogger);
 
 app.use("/", authRoutes);
 app.use("/api/blackjack", blackjackRoutes);
+app.use("/api/roulette", rouletteRoutes);
 app.use("/api/admin", adminRoutes);
 
 app.use(errorHandler);

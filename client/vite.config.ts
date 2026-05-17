@@ -6,7 +6,15 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:3000", // <-- mets le port de ton backend
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
+      "/me": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
+      "/login": {
+        target: "http://localhost:3000",
         changeOrigin: true,
       },
     },

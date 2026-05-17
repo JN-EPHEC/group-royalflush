@@ -39,6 +39,12 @@ function isAdminTransaction(type: string): boolean {
   return type.toUpperCase().startsWith("ADMIN_");
 }
 
+function isAuthFailure(err: unknown): boolean {
+  if (!axios.isAxiosError(err)) return false;
+  const status = err.response?.status;
+  return status === 401 || status === 403;
+}
+
 export default function Admin() {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<StoredUser | null>(getStoredUser);
@@ -94,21 +100,46 @@ export default function Admin() {
       return;
     }
 
-    axios
-      .get<StoredUser>(`${API_BASE_URL}/me`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const res = await axios.get<StoredUser>(`${API_BASE_URL}/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (cancelled) return;
+
         if (res.data.role !== "ADMIN") {
           navigate("/jeu", { replace: true });
           return;
         }
+
         setCurrentUser(res.data);
         saveSession(token, res.data);
-        return refreshUsers();
-      })
-      .catch(() => {
-        clearSession();
-        navigate("/", { replace: true });
-      });
+
+        try {
+          await refreshUsers();
+        } catch (err) {
+          if (cancelled) return;
+          const msg = axios.isAxiosError<{ error?: string }>(err)
+            ? err.response?.data?.error
+            : undefined;
+          setError(msg ?? "Impossible de charger la liste des joueurs.");
+        }
+      } catch (err) {
+        if (cancelled) return;
+        if (isAuthFailure(err)) {
+          clearSession();
+          navigate("/", { replace: true });
+          return;
+        }
+        setError("Impossible de vérifier votre session administrateur.");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [navigate, token]);
 
   useEffect(() => {
