@@ -1,0 +1,14 @@
+# Sur le VPS : depuis ce dossier deploy/
+#   export ROYALFLUSH_ENV_FILE=~/royalflush-api.env
+#   docker compose up -d --build
+services:
+  royalflush-api:
+    container_name: royalflush-api
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ${ROYALFLUSH_ENV_FILE:?Définir ROYALFLUSH_ENV_FILE (ex. ~/royalflush-api.env)}
+    ports:
+      - "127.0.0.1:3000:3000"

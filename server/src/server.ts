@@ -1,18 +1,14 @@
-import sequelize from "./config/database";
-import "./models/User"; // IMPORTANT: charge le modèle
+import "dotenv/config";
 import app from "./app";
-
+import { prisma } from "./lib/prisma.js";
 
 async function start() {
   try {
-    await sequelize.authenticate();
+    await prisma.$connect();
     console.log("DB connectée");
-    await sequelize.sync();
-    console.log("DB synchronisée");
-
     app.listen(3000, () => console.log(" http://localhost:3000"));
   } catch (err) {
-    console.error("❌ Erreur démarrage :", err);
+    console.error("Erreur démarrage :", err);
   }
 }
 

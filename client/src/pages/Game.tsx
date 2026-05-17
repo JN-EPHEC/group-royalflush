@@ -79,9 +79,14 @@ export default function Game() {
           Zone de jeu — le pseudo <strong>{user.username}</strong> s’affichera ici dans tes écrans de
           jeu (blackjack, roulette, etc.).
         </p>
-        <Link to="/blackjack" className="game-blackjack-link">
-          <img src={blackjackImg} alt="Blackjack" className="game-card-image" />
-        </Link>
+        <div className="game-cards-row">
+          <Link to="/blackjack" className="game-blackjack-link">
+            <img src={blackjackImg} alt="Blackjack" className="game-card-image" />
+          </Link>
+          <Link to="/roulette" className="game-blackjack-link">
+            <div className="game-roulette-card">🎡 Roulette</div>
+          </Link>
+        </div>
         {user.role === "ADMIN" ? (
           <p className="game-placeholder">
             <Link to="/admin">Aller au panneau Admin</Link>

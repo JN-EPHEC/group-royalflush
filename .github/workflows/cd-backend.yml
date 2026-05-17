@@ -1,0 +1,46 @@
+name: Continuous Deployment - Backend
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy API on VPS (Docker)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          port: 54321
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            DEPLOY_DIR="${{ secrets.DEPLOY_DIR }}"
+            if [ -z "$DEPLOY_DIR" ]; then
+              DEPLOY_DIR="$HOME/group-royalflush"
+            fi
+            ENV_FILE="${{ secrets.ROYALFLUSH_ENV_FILE }}"
+            if [ -z "$ENV_FILE" ]; then
+              ENV_FILE="$HOME/royalflush-api.env"
+            fi
+            if [ ! -f "$ENV_FILE" ]; then
+              echo "Fichier env manquant: $ENV_FILE"
+              echo "Copie server/vps.env.example vers ~/royalflush-api.env sur le VPS."
+              exit 1
+            fi
+            if [ ! -d "$DEPLOY_DIR/.git" ]; then
+              echo "Clone le repo dans $DEPLOY_DIR (voir deploy/vps-first-install.sh)"
+              exit 1
+            fi
+            cd "$DEPLOY_DIR"
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
+            export ROYALFLUSH_ENV_FILE="$ENV_FILE"
+            cd deploy
+            docker compose up -d --build --remove-orphans
+            docker ps --filter name=royalflush-api
