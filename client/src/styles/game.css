@@ -82,13 +82,40 @@
   border-color: gold;
 }
 
+.game-cards-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
 .game-card-image {
-  width: 300px;   /* change ici la taille */
+  width: 260px;
   max-width: 100%;
   border-radius: 12px;
   transition: 0.2s;
+  display: block;
 }
 
 .game-card-image:hover {
+  transform: scale(1.05);
+}
+
+.game-roulette-card {
+  width: 260px;
+  height: 195px;
+  background: #145a32;
+  color: #fff;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  border: 3px solid #8B6914;
+  transition: transform 0.2s;
+}
+
+.game-blackjack-link:hover .game-roulette-card {
   transform: scale(1.05);
 }
